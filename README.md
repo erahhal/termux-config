@@ -9,7 +9,7 @@ don't bolt on a standalone script.
 
 | Module        | What it does |
 |---------------|--------------|
-| `base`        | Installs base Termux packages (`git`, `gh`, `curl`, `python`, `iptables`, `jq`, `openssh`, `termux-api`). |
+| `base`        | Installs base Termux packages (`git`, `gh`, `curl`, `python`, `jq`, `openssh`, `termux-api`). |
 | `gh`          | Authenticates the GitHub CLI (`gh auth login`) and wires it up as git's credential helper. |
 | `vpn-nest`    | Installs [`termux-vpn-nest`](https://github.com/erahhal/termux-vpn-nest): downloads the static `tailscale`/`tailscaled` binaries, clones the repo, and runs its installer. Chains a Termux Tailscale/Headscale client through the Mullvad app. |
 | `claude-code` | Runs the [`claude-code-android`](https://github.com/ferrumclaudepilgrim/claude-code-android) installer: Anthropic's native `claude` patched to run under Android. Heavy (~233 MB first time). |
