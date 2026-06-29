@@ -1,0 +1,8 @@
+# Editor / OS cruft
+*.swp
+*~
+.DS_Store
+
+# Nothing in this repo should hold local state or secrets; if you add a
+# local override file, ignore it here.
+*.local
