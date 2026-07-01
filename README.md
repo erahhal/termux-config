@@ -13,6 +13,7 @@ don't bolt on a standalone script.
 | `gh`          | Authenticates the GitHub CLI (`gh auth login`) and wires it up as git's credential helper. |
 | `vpn-nest`    | Installs [`termux-vpn-nest`](https://github.com/erahhal/termux-vpn-nest): downloads the static `tailscale`/`tailscaled` binaries, clones the repo, and runs its installer. Chains a Termux Tailscale/Headscale client through the Mullvad app. |
 | `claude-code` | Runs the [`claude-code-android`](https://github.com/ferrumclaudepilgrim/claude-code-android) installer: Anthropic's native `claude` patched to run under Android. Heavy (~233 MB first time). |
+| `gcam`        | Writes `/system/etc/sysconfig/pixel_experience_2019.xml` so the BSG GCam mod's power-button double-tap camera shortcut works (adds the `PIXEL_2019_EXPERIENCE` feature). `/system` is wiped by every OTA, so **re-run this module after each system update**, then soft-reboot. |
 
 ## Quick start
 
@@ -49,6 +50,10 @@ Re-running is safe by design:
   tree or a non-git directory).
 - **claude-code** — the upstream installer classifies prior state and re-runs
   in place.
+- **gcam** — no-ops if the `PIXEL_2019_EXPERIENCE` feature is already
+  registered (or the file is already written and just awaiting a reboot);
+  otherwise (re)writes it. Never reboots on its own. Skips cleanly without
+  root. The full config-merge toolkit lives in `assets/gcam/`.
 
 ## Manual prerequisites (can't be scripted)
 
