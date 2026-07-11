@@ -4,7 +4,9 @@
     <!-- OnePlus 13 (CPH2655) BSG MGC aweme build       -->
     <!-- (com.ss.android.ugc.aweme)                    -->
     <!-- Tested against 9.6.080 V17 and 9.7.047 V7     -->
-    <!-- EIS disabled to avoid interfering with OIS    -->
+    <!-- EIS ON (mode 1); coexists with HAL-driven OIS  -->
+    <!-- IRIS off: fixes the aux-lens zoom-switch freeze -->
+    <!-- (see the dedicated section further down)       -->
     <!-- ============================================== -->
     <!--                                                -->
     <!-- New BSG pref keys introduced in 9.7 are left   -->
@@ -61,7 +63,7 @@
     <!-- pref_video_stabilization_key=1 enables Camera2 EIS at mode 1     -->
     <!-- (standard "ON"). The HAL also exposes mode 2 (PREVIEW_STABILI-   -->
     <!-- ZATION, the Pixel-style high-quality EIS) but the BSG mod only    -->
-    <!-- requests mode 1 -- there is no config key to ask for mode 2 in   -->
+    <!-- requests mode 1; there is no config key to ask for mode 2 in     -->
     <!-- this build. OnePlus's vendor "Hyper-stabilization" mode (set via -->
     <!-- the OEM custom tag video.stabilization.mode) is unreachable from -->
     <!-- third-party apps; only the stock OnePlus camera can use it.      -->
@@ -118,6 +120,37 @@
 
     <!-- Max Zoom -->
     <string name="pref_max_zoom_key">10</string>
+
+    <!-- ============================================== -->
+    <!-- Aux-lens switch freeze fix (0.7 / 1.0 / 3.2)   -->
+    <!-- ============================================== -->
+    <!-- Symptom: the top zoom-ratio buttons stop        -->
+    <!-- responding after a few switches; only force-    -->
+    <!-- stopping GCam clears it.                        -->
+    <!--                                                 -->
+    <!-- Root cause (captured via logcat during a live   -->
+    <!-- repro on this OP13): on an aux-lens switch GCam  -->
+    <!-- tears down the camera device while an offline   -->
+    <!-- HDR+/multi-frame job (the MMF_PLUS / "offCam"   -->
+    <!-- pipeline) is still in flight. The IPE/BPS       -->
+    <!-- firmware then hangs:                            -->
+    <!--   CAM-ICP ... DMI_STATUS polling timed out at    -->
+    <!--     hardwaredriver_ipebps.c   (100s of hits)     -->
+    <!--   ChiX Async_MMF_PLUS_Create: Flush/Sync         -->
+    <!--     TimedWait 2147483647 ms  (~infinite wait)    -->
+    <!-- and the session wedges, spamming "CameraDevice   -->
+    <!-- was already closed" until the process is killed. -->
+    <!--                                                 -->
+    <!-- Fix: keep the RAW/computational front-ends that  -->
+    <!-- feed that offline pipeline out of the ZSL queue  -->
+    <!-- so there's nothing in flight to deadlock on when -->
+    <!-- the lens switches. Ladder, least -> most image-  -->
+    <!-- quality cost. IRIS off is the applied first step -->
+    <!-- (2026-07-11). If the freeze recurs, also flip    -->
+    <!-- Kepler, then the merge nodes, by uncommenting:   -->
+    <!--   <string name="pref_camera_kepler_enabled_key">0</string> -->
+    <!--   <boolean name="mn_enabled" value="false" />    -->
+    <string name="pref_camera_enable_iris">0</string>
 
     <!-- ============================================== -->
     <!-- Video recording stability                      -->
