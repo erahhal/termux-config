@@ -47,6 +47,11 @@ run_vpn_nest() {
   _install_tailscale_binaries
   repo_sync "$VPN_NEST_URL" "$VPN_NEST_DIR"
 
+  # Its install.sh runs bare `pip install --user h2`; a prior python major
+  # upgrade can leave pip's launcher pointing at a removed interpreter. Repair
+  # pip first so a routine `pkg upgrade` doesn't break this module.
+  ensure_pip || warn "pip repair incomplete; termux-vpn-nest install.sh may fail."
+
   info "Running termux-vpn-nest/install.sh"
   ( cd "$VPN_NEST_DIR" && ./install.sh ) || fail "termux-vpn-nest install.sh failed."
 

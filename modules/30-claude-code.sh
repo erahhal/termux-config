@@ -41,5 +41,15 @@ run_claude_code() {
   info "Running claude-code-android installer (this can take several minutes)"
   bash "$tmp/install.sh" || fail "claude-code-android installer failed."
 
-  ok "claude-code-android installed. Run 'claude' to start."
+  # Upstream prints its own "claude --version" with stderr merged in (2>&1), so a
+  # harmless Android quirk gets glued onto that line: the claude binary walks the
+  # dir tree at startup and readdir()s "/", which this app's uid can't read ->
+  # 'Cannot read directory "/": EACCES'. It exits 0 and the TUI never shows it.
+  # Print our own clean readout with stderr dropped so the final status is tidy.
+  if command -v claude >/dev/null 2>&1; then
+    local ver; ver="$(claude --version 2>/dev/null | head -n1)"
+    ok "claude-code-android installed: ${ver:-ok}. Run 'claude' to start."
+  else
+    ok "claude-code-android installed. Run 'claude' to start."
+  fi
 }
