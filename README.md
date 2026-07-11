@@ -14,6 +14,7 @@ don't bolt on a standalone script.
 | `vpn-nest`    | Installs [`termux-vpn-nest`](https://github.com/erahhal/termux-vpn-nest): downloads the static `tailscale`/`tailscaled` binaries, clones the repo, and runs its installer. Chains a Termux Tailscale/Headscale client through the Mullvad app. |
 | `claude-code` | Runs the [`claude-code-android`](https://github.com/ferrumclaudepilgrim/claude-code-android) installer: Anthropic's native `claude` patched to run under Android. Heavy (~233 MB first time). |
 | `gcam`        | Writes `/system/etc/sysconfig/pixel_experience_2019.xml` so the BSG GCam mod's power-button double-tap camera shortcut works (adds the `PIXEL_2019_EXPERIENCE` feature). `/system` is wiped by every OTA, so **re-run this module after each system update**, then soft-reboot. |
+| `gcam-camhal-fix` | Installs a Magisk module that patches the OnePlus 13 (`dodge`) camera HAL config so the HDR+ merge job (`MMF_PLUS`) no longer freezes the camera preview/lens switching. Root + OnePlus 13 only; activates on reboot; OTA-resilient. Full write-up: [`assets/gcam/CAMERA-FREEZE-FINDINGS.md`](assets/gcam/CAMERA-FREEZE-FINDINGS.md). |
 
 ## Quick start
 
@@ -54,6 +55,11 @@ Re-running is safe by design:
   registered (or the file is already written and just awaiting a reboot);
   otherwise (re)writes it. Never reboots on its own. Skips cleanly without
   root. The full config-merge toolkit lives in `assets/gcam/`.
+- **gcam-camhal-fix** — no-ops if the running camera config already carries
+  the patch; otherwise (re)deploys the Magisk module, which activates on the
+  next reboot and re-patches the current stock config each boot (OTA-safe).
+  Never reboots on its own. Skips cleanly without root or on non-OnePlus-13
+  hardware.
 
 ## Manual prerequisites (can't be scripted)
 

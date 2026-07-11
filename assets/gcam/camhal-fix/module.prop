@@ -1,0 +1,6 @@
+id=op13_cam_mmf_fix
+name=OP13 Camera MMF_PLUS Sync Fix
+version=v1.0
+versionCode=1
+author=rahh + claude
+description=Fixes the OnePlus 13 (dodge) camera preview/lens freeze + transient lens-switch stall by moving the HDR+ merge job (Async_MMF_PLUS_Create) and the realtime post-processor (Async_RealtimePostProcessor_Create) out of the synchronous job list in /odm/etc/camera/CameraHWConfiguration.config. Patches the CURRENT stock config at each boot (OTA-resilient) and bind-mounts it. HDR+ stays fully enabled. Revert: disable this module + reboot.

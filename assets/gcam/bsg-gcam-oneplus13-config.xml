@@ -122,35 +122,34 @@
     <string name="pref_max_zoom_key">10</string>
 
     <!-- ============================================== -->
-    <!-- Aux-lens switch freeze fix (0.7 / 1.0 / 3.2)   -->
+    <!-- Camera freeze (0.7 / 1.0 / 3.2 + preview)      -->
     <!-- ============================================== -->
-    <!-- Symptom: the top zoom-ratio buttons stop        -->
-    <!-- responding after a few switches; only force-    -->
-    <!-- stopping GCam clears it.                        -->
+    <!-- Symptom: lens buttons and/or preview freeze     -->
+    <!-- intermittently on lifecycle events (lens switch, -->
+    <!-- capture, app-switch-and-return); worst case      -->
+    <!-- needs a force-kill.                              -->
     <!--                                                 -->
-    <!-- Root cause (captured via logcat during a live   -->
-    <!-- repro on this OP13): on an aux-lens switch GCam  -->
-    <!-- tears down the camera device while an offline   -->
-    <!-- HDR+/multi-frame job (the MMF_PLUS / "offCam"   -->
-    <!-- pipeline) is still in flight. The IPE/BPS       -->
-    <!-- firmware then hangs:                            -->
-    <!--   CAM-ICP ... DMI_STATUS polling timed out at    -->
-    <!--     hardwaredriver_ipebps.c   (100s of hits)     -->
-    <!--   ChiX Async_MMF_PLUS_Create: Flush/Sync         -->
-    <!--     TimedWait 2147483647 ms  (~infinite wait)    -->
-    <!-- and the session wedges, spamming "CameraDevice   -->
-    <!-- was already closed" until the process is killed. -->
-    <!--                                                 -->
-    <!-- Fix: keep the RAW/computational front-ends that  -->
-    <!-- feed that offline pipeline out of the ZSL queue  -->
-    <!-- so there's nothing in flight to deadlock on when -->
-    <!-- the lens switches. Ladder, least -> most image-  -->
-    <!-- quality cost. IRIS off is the applied first step -->
-    <!-- (2026-07-11). If the freeze recurs, also flip    -->
-    <!-- Kepler, then the merge nodes, by uncommenting:   -->
-    <!--   <string name="pref_camera_kepler_enabled_key">0</string> -->
-    <!--   <boolean name="mn_enabled" value="false" />    -->
-    <string name="pref_camera_enable_iris">0</string>
+    <!-- REAL ROOT CAUSE is in the vendor camera HAL, not -->
+    <!-- GCam: the HDR+ merge job MMF_PLUS is flushed      -->
+    <!-- synchronously on teardown and orphans with an     -->
+    <!-- infinite wait (ChiX Async_MMF_PLUS_Create ...     -->
+    <!-- TimedWait 2147483647 ms). Fixed at the HAL by the -->
+    <!-- 'gcam-camhal-fix' Magisk module (patches          -->
+    <!-- /odm/etc/camera/CameraHWConfiguration.config).    -->
+    <!-- That keeps HDR+ fully ON. Full write-up:          -->
+    <!-- assets/gcam/CAMERA-FREEZE-FINDINGS.md             -->
+    <!--                                                  -->
+    <!-- The two keys below (IRIS + Kepler RAW engines)    -->
+    <!-- are ON (=1) for full image quality. They were     -->
+    <!-- briefly disabled as a GCam-side PARTIAL mitigation -->
+    <!-- before the HAL root cause was found; that's no     -->
+    <!-- longer needed once 'gcam-camhal-fix' is installed, -->
+    <!-- so they're back on. (Benign red herrings seen      -->
+    <!-- while diagnosing, ignore them: "Preallocate config -->
+    <!-- failed", "VIULL not supported", "DMI_STATUS polling -->
+    <!-- timed out"; Aperture logs them too and works fine.) -->
+    <string name="pref_camera_enable_iris">1</string>
+    <string name="pref_camera_kepler_enabled_key">1</string>
 
     <!-- ============================================== -->
     <!-- Video recording stability                      -->
