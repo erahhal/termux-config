@@ -113,6 +113,43 @@ makes the toggle buttons use the zoom path. Most of the "tele won't select"
 reports turned out to be the same MMF_PLUS freeze, so the HAL fix is the real
 answer here too.
 
+## Known UNFIXED limitations (GCam build vs Android 16)
+
+These two are GCam-port limitations in its compiled imaging/session code meeting
+the newer LineageOS/Android-16 stack. Unlike the freeze (a HAL *config* value),
+there's no config knob that reaches them. Confirmed dead ends noted so nobody
+re-runs them.
+
+**1. Video recording stops when you tap a rear lens button (0.7 / 1.0 / 3.2).**
+The lens *buttons* do a physical-camera `close()→open()` (`cameraId 2→4→3`),
+which abandons the video encoder's input surface (`BufferQueue has been
+abandoned` + `c2.qti.avc.encoder ... stale buffer` + `CAM_grz: Trying to stop
+recording but state is: NO_RECORDING`). Zoom stays inside one logical-camera
+session, so it does NOT stop recording.
+- Tried, no effect: `camera.zoom.enable_manual_lens_integration=true`,
+  `camera.use_frameserver_zoom=true`, `camera.fake_zoom_toggle=true`. No
+  seamless-in-video-switch flag exists in this build (9.7.047).
+- **Workaround:** use PINCH-ZOOM (not the lens buttons) to change focal length
+  during video — it reaches all lenses incl. 3x without stopping the recording.
+
+**2. Photos taken while recording video come out green.**
+The photo-during-video (Liveshot, `ZSLSnapshotYUVHAL`, taken at video size) asks
+Android 16's gralloc for an explicit UBWC format it dropped
+(`qdgralloc GetSnapFormat: Explicit UBWC formats such as 2141391878 are no
+longer supported`) and an invalid legacy dataspace
+(`DataspaceHelper: Attempting to set invalid gralloc dataspace - 258`) with no
+color aspects (`IMGTXRFILTER: Client has not specified color aspects ...
+VENUS_NV12`) → wrong YUV→RGB math → green.
+- Tried, no effect: `camera.LiveshotSize.isLiveshotSizeSameAsVideoSize=false`;
+  forcing HEVC (`pref_codec_format=hevc`). No UBWC/linear/snapshot-format toggle
+  exists in the config or the editable HAL config.
+- **Workaround:** grab a frame from the recorded 1080p video afterward (~2 MP,
+  correct color), or use Aperture/stock for a proper still while filming, or
+  shoot before/after.
+
+Both would need a newer GCam build that targets the Android-16 gralloc/dataspace,
+not a config change.
+
 ## References
 
 - OP13-OCVM (stock-OOS mod, confirms the vendor bug + the `DisableSyncJobList` edit):
