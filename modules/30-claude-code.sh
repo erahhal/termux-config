@@ -33,8 +33,7 @@ run_claude_code() {
   fi
 
   local tmp
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' RETURN
+  mktempdir tmp
   info "Fetching upstream installer"
   curl -fsSL "$CCA_INSTALLER_URL" -o "$tmp/install.sh" \
     || fail "Couldn't download claude-code-android installer."

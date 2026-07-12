@@ -28,8 +28,7 @@ _install_tailscale_binaries() {
   [ -n "$tarball" ] && [ "$tarball" != "null" ] || fail "No tarball listed for arch $arch."
   url="https://pkgs.tailscale.com/stable/${tarball}"
 
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' RETURN
+  mktempdir tmp
   info "Downloading $url"
   curl -fSL --progress-bar "$url" -o "$tmp/ts.tgz" || fail "tailscale download failed."
   info "Extracting tailscale + tailscaled into \$HOME"

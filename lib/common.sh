@@ -18,6 +18,30 @@ step() { printf '\n%s==>%s %s%s%s\n' "$_C_CYAN" "$_C_RST" "$_C_BOLD" "$*" "$_C_R
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# --- Temp dirs ---------------------------------------------------------------
+# mktempdir <varname> — create a temp dir, store its path in <varname>, and queue
+# it for removal when the shell exits. Assigns rather than echoes: a command
+# substitution would run the body in a subshell, so the cleanup registration
+# below would be lost with it and the dir would leak.
+#
+#   local tmp; mktempdir tmp
+#
+# Modules must not clean up with `trap ... RETURN`. A RETURN trap set inside a
+# function is not scoped to it: the trap stays installed, and bash fires it again
+# when a sourced file finishes. install.sh sources each module in turn, so the
+# handler would re-run with its local $tmp gone -> "tmp: unbound variable" under
+# `set -u`, aborting every module after the one that set the trap.
+_TMPDIRS=()
+_rm_tmpdirs() { [ "${#_TMPDIRS[@]}" -eq 0 ] || rm -rf "${_TMPDIRS[@]}"; }
+trap _rm_tmpdirs EXIT
+
+mktempdir() {
+  local _d
+  _d="$(mktemp -d)" || fail "mktemp -d failed."
+  _TMPDIRS+=("$_d")
+  printf -v "$1" '%s' "$_d"
+}
+
 # --- Environment guards ------------------------------------------------------
 require_termux() {
   [ -n "${PREFIX:-}" ] || fail "PREFIX unset. Run this inside Termux, not adb/proot shell."

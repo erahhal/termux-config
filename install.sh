@@ -26,7 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
 # Module registry: friendly-name -> "file:function".
 # Order here is the run order when no specific modules are requested.
-MODULE_ORDER=(base gh vpn-nest claude-code gcam gcam-camhal-fix)
+MODULE_ORDER=(base gh vpn-nest claude-code gcam gcam-camhal-fix gadgetbridge)
 declare -A MODULE_FILE=(
   [base]="00-base.sh:run_base"
   [gh]="10-gh.sh:run_gh"
@@ -34,6 +34,7 @@ declare -A MODULE_FILE=(
   [claude-code]="30-claude-code.sh:run_claude_code"
   [gcam]="40-gcam.sh:run_gcam"
   [gcam-camhal-fix]="50-gcam-camhal-fix.sh:run_gcam_camhal_fix"
+  [gadgetbridge]="60-gadgetbridge.sh:run_gadgetbridge"
 )
 
 # Print the leading comment header (everything from line 2 up to the first
