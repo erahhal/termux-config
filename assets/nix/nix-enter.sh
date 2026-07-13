@@ -35,11 +35,18 @@ else
   for _a in "$@"; do _cmd="$_cmd $(printf '%q' "$_a")"; done
 fi
 
+# The username to present. A one-line config file lets a declarative layer pin a
+# stable handle (e.g. "erahhal") instead of Android's per-install u0_aNNN; absent
+# -> the derived name. Must match what nix-root.sh stamps into /etc/passwd, or
+# glibc getpwuid and $USER disagree. Absolute path: $HOME may be unset out here.
+_user="$(head -n1 /data/data/com.termux/files/home/.config/termux-config/username 2>/dev/null || true)"
+[ -n "$_user" ] || _user="$(id -un)"
+
 # su gives a bare PATH, so commands handed to nix-enter (bash, nix, ...) wouldn't
 # resolve. Set Termux's PATH, then layer the Nix profile on top if it exists, so
 # `nix-enter nix ...` and `nix-enter <nix-installed-tool>` work non-interactively.
 _env='export NIX_ROOTED=1
-export USER="$(id -un)"
+export USER='"$(printf '%q' "$_user")"'
 export HOME=/data/data/com.termux/files/home
 export TMPDIR=/data/data/com.termux/files/usr/tmp
 export NIX_SSL_CERT_FILE=/data/data/com.termux/files/usr/etc/tls/cert.pem

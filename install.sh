@@ -36,6 +36,9 @@ declare -A MODULE_FILE=(
   [gcam]="40-gcam.sh:run_gcam"
   [gcam-camhal-fix]="50-gcam-camhal-fix.sh:run_gcam_camhal_fix"
   [gadgetbridge]="60-gadgetbridge.sh:run_gadgetbridge"
+  # Optional, not in MODULE_ORDER (so a plain ./install.sh won't change sshd).
+  # Run explicitly: ./install.sh sshd-nix
+  [sshd-nix]="70-sshd-nix.sh:run_sshd_nix"
 )
 
 # Print the leading comment header (everything from line 2 up to the first

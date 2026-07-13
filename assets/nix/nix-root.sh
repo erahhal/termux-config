@@ -36,7 +36,13 @@ TERMUX_UID=$(stat -c %u "$TERMUX_HOME")
 # reports u0_aNNN. glibc will read the passwd we write below. The two must agree
 # on the name or Nix (glibc) and the shell (bionic) disagree about $USER and end
 # up with divergent /nix/var/nix/profiles/per-user paths.
-TERMUX_USER=$(stat -c %U "$TERMUX_HOME")
+#
+# The name is configurable via a one-line file so a declarative config layer can
+# pick a stable handle (e.g. "erahhal") instead of Android's per-install u0_aNNN.
+# Absent -> fall back to the derived name, so this script stands alone unchanged.
+# nix-enter.sh reads the same file for $USER; keep the two in sync.
+TERMUX_USER="$(head -n1 "$TERMUX_HOME/.config/termux-config/username" 2>/dev/null || true)"
+[ -n "$TERMUX_USER" ] || TERMUX_USER=$(stat -c %U "$TERMUX_HOME")
 # Android tags each app's files with per-app MLS categories, e.g.
 #   u:object_r:app_data_file:s0:c90,c257,c512,c768
 # and mlsconstrain lets the app touch only files whose categories match exactly.
