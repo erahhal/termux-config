@@ -16,6 +16,8 @@ run_base() {
     jq           # parsing the tailscale release JSON
     openssh      # ssh / scp; commonly needed
     termux-api   # bridge to Termux:API app (optional but handy)
+    busybox      # pivot_root + mount --rbind/--make-rprivate, for the nix module
+                 # (Android's toybox mount has neither)
   )
 
   info "Updating package lists (pkg update)"

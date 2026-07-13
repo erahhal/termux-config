@@ -1,0 +1,6 @@
+id=termux_nix_selinux
+name=Termux Nix SELinux transition
+version=v1
+versionCode=1
+author=nixcfg
+description=Grants the exec-based domain transition that lets su -Z re-enter Termux's app domain without the zygote seccomp filter, so native Nix (glibc) binaries can run. The sepolicy.rule is generated at install from Termux's live SELinux domain.

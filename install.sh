@@ -26,9 +26,10 @@ SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
 # Module registry: friendly-name -> "file:function".
 # Order here is the run order when no specific modules are requested.
-MODULE_ORDER=(base gh vpn-nest claude-code gcam gcam-camhal-fix gadgetbridge)
+MODULE_ORDER=(base nix gh vpn-nest claude-code gcam gcam-camhal-fix gadgetbridge)
 declare -A MODULE_FILE=(
   [base]="00-base.sh:run_base"
+  [nix]="05-nix.sh:run_nix"
   [gh]="10-gh.sh:run_gh"
   [vpn-nest]="20-vpn-nest.sh:run_vpn_nest"
   [claude-code]="30-claude-code.sh:run_claude_code"
