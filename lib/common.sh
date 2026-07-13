@@ -18,6 +18,24 @@ step() { printf '\n%s==>%s %s%s%s\n' "$_C_CYAN" "$_C_RST" "$_C_BOLD" "$*" "$_C_R
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# ensure_pkgs <pkg>... — install any missing Termux packages, idempotently.
+# The base module installs only the pre-nix bootstrap core (busybox/git/curl);
+# every other module pulls its OWN Termux deps through this, and only when that
+# module actually runs. So a Nix-based flow that runs just `base nix` never
+# installs Termux copies of tools Nix already provides (gh, jq, openssh, ...).
+# Uses dpkg for the presence check because a package's payload isn't always a
+# command on PATH (e.g. openssh's sftp-server lives in libexec).
+ensure_pkgs() {
+  local p missing=()
+  for p in "$@"; do
+    dpkg -s "$p" >/dev/null 2>&1 || missing+=("$p")
+  done
+  [ "${#missing[@]}" -gt 0 ] || return 0
+  info "Installing Termux packages: ${missing[*]}"
+  pkg install -y "${missing[@]}" >/dev/null 2>&1 \
+    || warn "pkg install failed for: ${missing[*]} (this module may not work)."
+}
+
 # --- Temp dirs ---------------------------------------------------------------
 # mktempdir <varname> — create a temp dir, store its path in <varname>, and queue
 # it for removal when the shell exits. Assigns rather than echoes: a command

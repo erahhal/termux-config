@@ -1,13 +1,17 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Module: GitHub CLI auth.
-# Ensures `gh` is installed (base module covers it), authenticates against
-# github.com if not already, and wires gh up as git's credential helper so
-# `git push`/`git clone` over HTTPS just works.
+# Module: GitHub CLI auth (repo1-standalone path).
+# Installs Termux `gh`, authenticates against github.com if not already, and
+# wires gh up as git's credential helper so HTTPS `git push`/`clone` just works.
+#
+# Note: the declarative (Nix) setup does NOT run this module — it gets gh from
+# Nix and points git's credential helper at `nix-enter gh` (see termux-nixcfg).
+# This module is for using termux-config on its own, without the Nix config.
 
 run_gh() {
   step "GitHub CLI (gh)"
 
-  have gh || fail "gh not installed; run the base module first."
+  ensure_pkgs gh
+  have gh || fail "gh not installed and could not be installed."
 
   if gh auth status >/dev/null 2>&1; then
     ok "Already authenticated with GitHub:"

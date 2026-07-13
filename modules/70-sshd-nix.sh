@@ -20,6 +20,11 @@ SSHD_SNIPPET="$SSHD_CONF_D/10-nix-enter.conf"
 run_sshd_nix() {
   step "seccomp-free sshd (ssh -> nix-enter)"
 
+  # Termux openssh provides the sshd + sftp-server this module wires up. (Nix
+  # openssh exists too, but the server side stays Termux to avoid seccomp on the
+  # listener; the wrapper hands sessions to nix-enter.)
+  ensure_pkgs openssh
+
   if [ ! -x "$PREFIX/bin/nix-enter" ]; then
     warn "nix-enter not installed; run the nix module first: ./install.sh nix"
     return 0

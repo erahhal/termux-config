@@ -43,6 +43,10 @@ _install_tailscale_binaries() {
 run_vpn_nest() {
   step "termux-vpn-nest (Tailscale via Mullvad)"
 
+  # jq parses the tailscale release JSON; python runs termux-vpn-nest's mullvad
+  # gRPC client. Pulled here (not in base) so a plain nix bootstrap skips them.
+  ensure_pkgs jq python
+
   _install_tailscale_binaries
   repo_sync "$VPN_NEST_URL" "$VPN_NEST_DIR"
 

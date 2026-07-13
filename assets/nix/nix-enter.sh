@@ -17,6 +17,16 @@
 set -u
 PREFIX=/data/data/com.termux/files/usr
 
+# Fast path: if we're already inside a seccomp-free rooted context (a prior
+# nix-enter set NIX_ROOTED and the pivot is live), the su -Z re-exec is redundant
+# — just run directly. This keeps `nix-enter <cmd>` ~free when called from an
+# already-entered shell (e.g. a git credential helper firing on every push),
+# instead of paying a magiskd round-trip each time. The Nix profile is already on
+# PATH here (the entering shell sourced it), so commands still resolve.
+if [ "${NIX_ROOTED:-}" = 1 ] && [ -d /nix/store ]; then
+  if [ "$#" -eq 0 ]; then exec "$PREFIX/bin/bash"; else exec "$@"; fi
+fi
+
 # Make sure /nix exists in this namespace first (pivot is per-app-namespace).
 [ -d /nix/store ] || su -c "$PREFIX/bin/nix-root /system/bin/true" >/dev/null 2>&1
 

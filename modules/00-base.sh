@@ -1,42 +1,26 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# Module: base packages.
-# Installs the Termux packages every other module depends on. `pkg install`
-# is a no-op for already-installed packages, so this is safe to re-run.
+# Module: base packages (pre-Nix bootstrap core only).
+#
+# Deliberately minimal: just the three Termux packages needed BEFORE Nix exists,
+# so a Nix-based setup carries no redundant Termux copies of tools Nix provides.
+# Every other module installs its own Termux deps via `ensure_pkgs` (lib/common),
+# and only when that module runs — e.g. the gh module pulls Termux `gh`, but a
+# `base nix` install never does, because Nix's gh covers it. `pkg install` is a
+# no-op for already-present packages, so this is safe to re-run.
 
 run_base() {
-  step "Base packages"
+  step "Base packages (bootstrap core)"
 
-  # start-vpn re-execs under su and relies on Android's root `ip`/iptables,
-  # so no Termux iptables package is needed here.
-  local pkgs=(
-    git          # repo cloning, gh git ops
-    gh           # GitHub CLI (auth handled in the gh module)
-    curl         # downloads (tailscale, claude installer)
-    python       # mullvad gRPC client in termux-vpn-nest
-    jq           # parsing the tailscale release JSON
-    openssh      # ssh / scp; commonly needed
-    termux-api   # bridge to Termux:API app (optional but handy)
-    busybox      # pivot_root + mount --rbind/--make-rprivate, for the nix module
-                 # (Android's toybox mount has neither)
-  )
+  # The irreducible pre-Nix trio. Everything else is per-module:
+  #   git    — clone this repo + the module source repos (before any Nix binary)
+  #   curl   — download the Nix installer (05-nix) and other installers
+  #   busybox— pivot_root + mount --rbind/--make-rprivate for the nix module
+  #            (Android's toybox mount has neither)
+  local pkgs=(git curl busybox)
 
   info "Updating package lists (pkg update)"
   pkg update -y >/dev/null 2>&1 || warn "pkg update reported errors; continuing."
 
-  # Install individually so one unavailable package doesn't abort the rest.
-  local p failed=()
-  for p in "${pkgs[@]}"; do
-    if pkg install -y "$p" >/dev/null 2>&1; then
-      info "installed/present: $p"
-    else
-      warn "could not install: $p"
-      failed+=("$p")
-    fi
-  done
-
-  if [ "${#failed[@]}" -gt 0 ]; then
-    warn "Some packages failed: ${failed[*]}"
-    warn "Continuing — modules that need them will report if they're missing."
-  fi
+  ensure_pkgs "${pkgs[@]}"
   ok "Base packages step complete."
 }
