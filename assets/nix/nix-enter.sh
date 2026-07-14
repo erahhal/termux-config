@@ -35,16 +35,6 @@ fi
 _g=""
 for _x in $(id -G); do _g="$_g -G $_x"; done
 
-# MagiskSU's -c takes a single command string and ignores trailing positional
-# args, so serialise the requested command (%q-quoted) into that string rather
-# than passing "$@" positionally. No args -> an interactive login-ish bash.
-if [ "$#" -eq 0 ]; then
-  _cmd="exec $PREFIX/bin/bash"
-else
-  _cmd="exec"
-  for _a in "$@"; do _cmd="$_cmd $(printf '%q' "$_a")"; done
-fi
-
 # The username to present. A one-line config file lets a declarative layer pin a
 # stable handle (e.g. "erahhal") instead of Android's per-install u0_aNNN; absent
 # -> the derived name. Must match what nix-root.sh stamps into /etc/passwd, or
@@ -52,19 +42,52 @@ fi
 _user="$(head -n1 /data/data/com.termux/files/home/.config/termux-config/username 2>/dev/null || true)"
 [ -n "$_user" ] || _user="$(id -un)"
 
-# su gives a bare PATH, so commands handed to nix-enter (bash, nix, ...) wouldn't
-# resolve. Set Termux's PATH, then layer the Nix profile on top if it exists, so
-# `nix-enter nix ...` and `nix-enter <nix-installed-tool>` work non-interactively.
-_env='export NIX_ROOTED=1
-export USER='"$(printf '%q' "$_user")"'
+# MagiskSU preserves the environment across the su call, so export what the inner
+# shell needs rather than injecting it as shell text. su hands us a bare PATH, so
+# restore Termux's; the Nix profile is layered on top by the shell hook (which
+# sources nix.sh when NIX_ROOTED is set) and, for -c commands, by the line below.
+export NIX_ROOTED=1
+export USER="$_user"
 export HOME=/data/data/com.termux/files/home
 export TMPDIR=/data/data/com.termux/files/usr/tmp
 export NIX_SSL_CERT_FILE=/data/data/com.termux/files/usr/etc/tls/cert.pem
 export PATH=/data/data/com.termux/files/usr/bin:/system/bin:/system/xbin
-[ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"'
+
+# INTERACTIVE (no args): invoke su WITHOUT -c, but WITH -m. Both halves matter.
+#
+# no -c: with -c, MagiskSU forks the shell from magiskd and merely passes our fds
+#   through. The pts is then an open file but NOT the new session's controlling
+#   terminal, so bash cannot tcsetpgrp and degrades to
+#     "cannot set terminal process group (-1): Inappropriate ioctl for device"
+#     "no job control in this shell"
+#   and anything wanting a real terminal (claude's TUI) sees a crippled one — it
+#   decides it is non-interactive and drops into --print mode. Without -c, MagiskSU
+#   allocates a proper pty (/debug_ramdisk/.magisk/pts/N) and makes the shell its
+#   session leader, so job control works.
+#
+# -m: without -c, su also "logs us in" — it resets HOME to /data, USER to u0_aNNN
+#   and PATH to magisk's. HOME=/data means bash looks for /data/.bashrc, so the
+#   home-manager config never loads and no Nix tool is on PATH. -m
+#   (--preserve-environment) keeps the HOME/USER we exported above.
+#
+# PATH is the one thing -m does NOT protect — MagiskSU always imposes its own. The
+# shell hook ($PREFIX/etc/bash.bashrc -> profile.d/nix-enter.sh) puts Termux's bin
+# back and layers the Nix profile on top, which is why PATH isn't fought over here.
+if [ "$#" -eq 0 ]; then
+  # shellcheck disable=SC2086
+  exec su -m -Z "$(id -Z)" -g "$(id -g)" $_g -s "$PREFIX/bin/bash" "$(id -u)" \
+    || exec "$PREFIX/bin/bash"
+fi
+
+# COMMAND (args given): -c is required, since MagiskSU ignores trailing positional
+# args. No pty here — that's fine, these are non-interactive contexts (credential
+# helpers, ssh commands, scripts). Anything wanting a terminal is already running
+# inside an entered shell and takes the fast path above.
+_cmd="exec"
+for _a in "$@"; do _cmd="$_cmd $(printf '%q' "$_a")"; done
 
 # shellcheck disable=SC2086
 exec su -Z "$(id -Z)" -g "$(id -g)" $_g -s "$PREFIX/bin/bash" "$(id -u)" \
-  -c "$_env
-$_cmd" \
-  || { export NIX_ROOTED=1; exec "$PREFIX/bin/bash" "$@"; }
+  -c '[ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
+'"$_cmd" \
+  || exec "$PREFIX/bin/bash" "$@"

@@ -35,6 +35,12 @@ NIX_ENTER_BIN="$PREFIX/bin/nix-enter"
 NIX_INSTALLER_URL="https://nixos.org/nix/install"
 NIX_SEPOL_MODID="termux_nix_selinux"
 NIX_HOOK_MARK="# >>> termux-config: nix >>>"
+# The shell hook lives on the Termux filesystem, NOT in ~/.bashrc: a declarative
+# layer (home-manager) turns ~/.bashrc into a /nix/store symlink, and /nix is gone
+# until the pivot runs — so a hook there would be unreadable exactly when it is
+# needed, and could never bootstrap after an app restart. See the asset's header.
+NIX_HOOK_SH="$PREFIX/etc/profile.d/nix-enter.sh"   # login shells (Termux, tmux)
+NIX_SYS_BASHRC="$PREFIX/etc/bash.bashrc"           # interactive non-login shells
 
 # Relabel a root-created store to this app's SELinux context. -h so store-internal
 # symlinks are relabelled in place rather than dereferenced. Idempotent no-op once
@@ -51,13 +57,38 @@ nix_fix_labels() {
     || warn "chcon failed; Nix may be unable to read its own store."
 }
 
-# Install (and live-load) the Magisk module carrying the SELinux transition rule
-# that lets `su -Z` re-enter Termux's app domain from an exec. The domain name
-# (untrusted_app_NN) is derived from the *targetSdk* of the Termux build, so it
-# is read live rather than hardcoded — re-run this module if Termux's targetSdk
-# ever changes.
+# Install (and live-load) the Magisk module carrying the SELinux rules Nix needs.
+# The domain name (untrusted_app_NN) is derived from the *targetSdk* of the Termux
+# build, so it is read live rather than hardcoded — re-run this module if Termux's
+# targetSdk ever changes.
+#
+# Two distinct problems are solved here:
+#
+# 1. The `allow` rules: let `su -Z` re-enter Termux's app domain from an exec.
+#    Without them nix-enter can't hand back a seccomp-free shell at all.
+#
+# 2. The `allowxperm` rules: let glibc get/set terminal attributes. Android applies
+#    per-ioctl xperm whitelisting to untrusted_app. glibc 2.42 uses the termios2
+#    ioctls (TCGETS2 0x542a / TCSETS2 0x542b / TCSETSW2 0x542c / TCSETSF2 0x542d)
+#    to read and set the tty; bionic uses the classic TCGETS 0x5401 / TCSETS 0x5402,
+#    which ARE whitelisted. The termios2 ones are NOT — so on the very same pty
+#    bionic `tty` prints the path while every glibc binary gets EACCES on TCGETS2,
+#    concludes stdin is not a terminal, and for Claude Code (a glibc Bun build)
+#    silently drops to non-interactive:
+#      "no stdin data received in 3s ... Input must be provided ... using --print"
+#    and no TUI starts. Same for any glibc TUI. (Confirmed: setenforce 0 makes
+#    glibc `tty` work; the pty node is labelled u:object_r:devpts:s0.)
+#
+#    Notes learned the hard way:
+#      * Target type is `devpts` — the pty NODE's label. `ls -Z /proc/self/fd/0`
+#        misleads: it reports the process context, not the node's.
+#      * magiskpolicy SILENTLY no-ops the braced-range form `ioctl { 0x5400-0x54ff }`
+#        (returns 0 but never applies it). The plain single-value form works, so we
+#        enumerate the four termios2 ioctls explicitly.
+#      * Scoped to ptys the app already owns — nothing new in kind, only the ioctl
+#        VARIANT glibc uses.
 nix_install_sepolicy() {
-  local appdom magiskdom moddir rule
+  local appdom magiskdom moddir rule x
   appdom="$(id -Z | cut -d: -f3)"                         # e.g. untrusted_app_27
   magiskdom="$(su -c 'id -Z' 2>/dev/null | cut -d: -f3)"  # e.g. magisk
   [ -n "$appdom" ] && [ -n "$magiskdom" ] \
@@ -67,6 +98,10 @@ nix_install_sepolicy() {
 allow $magiskdom $appdom process { transition dyntransition siginh rlimitinh noatsecure }
 allow $appdom app_data_file file entrypoint
 allow $appdom $magiskdom process sigchld
+allowxperm $appdom devpts chr_file ioctl 0x542a
+allowxperm $appdom devpts chr_file ioctl 0x542b
+allowxperm $appdom devpts chr_file ioctl 0x542c
+allowxperm $appdom devpts chr_file ioctl 0x542d
 EOF
 )
 
@@ -130,24 +165,25 @@ run_nix() {
     nix_fix_labels
   fi
 
-  # --- login hook -----------------------------------------------------------
-  if grep -qF "$NIX_HOOK_MARK" "$HOME/.bashrc" 2>/dev/null; then
-    info "Login hook already present in ~/.bashrc"
-  else
-    info "Adding the login hook to ~/.bashrc"
-    cat >> "$HOME/.bashrc" <<'EOF'
+  # --- shell hook -----------------------------------------------------------
+  # Installed to the Termux filesystem so it is readable with /nix absent (see
+  # NIX_HOOK_SH above). profile.d covers login shells — which is what the Termux
+  # terminal and every tmux pane are — and bash.bashrc covers interactive
+  # non-login shells. Both source the same file, so there is one hook to maintain.
+  info "Installing the shell hook -> $NIX_HOOK_SH"
+  mkdir -p "$(dirname "$NIX_HOOK_SH")"
+  install -m 0644 "$SCRIPT_DIR/assets/nix/nix-enter-hook.sh" "$NIX_HOOK_SH" \
+    || fail "Could not install the shell hook."
 
-# >>> termux-config: nix >>>
-# nix-enter re-execs an interactive shell seccomp-free (so Nix's glibc binaries
-# run) inside the nix-rooted namespace, keeping our uid/groups/SELinux context.
-# NIX_ROOTED, which nix-enter sets, breaks the recursion; non-interactive shells
-# are left alone. nix-enter self-heals the pivot if the app was restarted.
-if [ -x "$PREFIX/bin/nix-enter" ]; then
-  if [ -z "${NIX_ROOTED:-}" ]; then
-    case $- in *i*) exec "$PREFIX/bin/nix-enter" ;; esac
-  fi
-  [ -e "$HOME/.nix-profile/etc/profile.d/nix.sh" ] && . "$HOME/.nix-profile/etc/profile.d/nix.sh"
-fi
+  if grep -qF "$NIX_HOOK_MARK" "$NIX_SYS_BASHRC" 2>/dev/null; then
+    info "Hook already sourced from $(basename "$NIX_SYS_BASHRC")"
+  else
+    info "Sourcing the hook from $(basename "$NIX_SYS_BASHRC") (non-login shells)"
+    cat >> "$NIX_SYS_BASHRC" <<EOF
+
+$NIX_HOOK_MARK
+# Interactive non-login shells don't read profile.d, so pull the hook in here too.
+[ -r "$NIX_HOOK_SH" ] && . "$NIX_HOOK_SH"
 # <<< termux-config: nix <<<
 EOF
   fi
