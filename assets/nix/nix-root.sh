@@ -131,7 +131,20 @@ dumpsys connectivity 2>/dev/null | awk -v uid="$TERMUX_UID" '
       print "2 " dns                               # plain network: lower priority
     }
   }' | sort -n | grep -oE '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | awk '!seen[$0]++' \
-     | head -3 | sed 's/^/nameserver /' > "$STAGE/etc/resolv.conf"
+     | head -2 | sed 's/^/nameserver /' > "$STAGE/etc/resolv.conf"
+
+# Always append a public fallback. The discovered nameserver is whatever VPN
+# carried our uid AT PIVOT TIME — typically tailscale MagicDNS (100.100.100.100),
+# which is dead whenever the tailnet is down or (re)connecting. Without a
+# fallback, that chicken-and-egg leaves every glibc tool DNS-dead — including
+# tailscaled trying to resolve its own control server to bring the tailnet BACK.
+# glibc tries nameservers in order, so MagicDNS still wins while it's healthy
+# (no leak in normal operation); the fallback only sees queries when it's not.
+# glibc caps at 3 nameservers — hence head -2 above. timeout:2 keeps the
+# dead-resolver detour short (default would stall 5s per attempt).
+grep -q '^nameserver 1\.1\.1\.1$' "$STAGE/etc/resolv.conf" \
+  || echo 'nameserver 1.1.1.1' >> "$STAGE/etc/resolv.conf"
+echo 'options timeout:2' >> "$STAGE/etc/resolv.conf"
 
 mkdir -p "$STAGE/etc/ssl/certs"
 ln -s "$PREFIX/etc/tls/cert.pem" "$STAGE/etc/ssl/certs/ca-certificates.crt"

@@ -17,9 +17,10 @@
 # installed. Run as:
 #     bash ~/gcam/install-gcam-config.sh
 #
-# The shared_prefs config lives in /data and SURVIVES OTA updates. The only
-# part that must be reapplied after every system update is the Pixel feature
-# file -- see fix-gcam-pixel-feature.sh, which this script runs at the end.
+# The shared_prefs config lives in /data and SURVIVES OTA updates. The Pixel
+# feature flag (needed for the power-button camera shortcut) is now handled by
+# the termux-nixcfg repo as an OTA-proof Magisk module (magisk-gcam-pixel-feature,
+# via its ./apply-device.sh) — this script no longer writes it.
 #
 # Usage:
 #   install-gcam-config.sh [--user <id>] [--all]
@@ -333,17 +334,13 @@ else
     echo "All users configured successfully."
 fi
 
-# Run fix-gcam-pixel-feature.sh to ensure the Pixel feature flag is present.
-# This is the piece that must be reapplied after every OTA system update.
-PIXEL_FIX_SCRIPT="$SCRIPT_DIR/fix-gcam-pixel-feature.sh"
-if [[ -f "$PIXEL_FIX_SCRIPT" ]]; then
-    echo ""
-    echo "=== Running Pixel feature fix ==="
-    bash "$PIXEL_FIX_SCRIPT"
-else
-    echo ""
-    echo "WARNING: $PIXEL_FIX_SCRIPT not found. Skipping Pixel feature fix."
-fi
+# The Pixel feature flag (needed for the power-button camera shortcut) is now a
+# Nix-built Magisk module in the termux-nixcfg repo — OTA-proof (a Magisk system
+# overlay), unlike the old direct /system write this script used to run here.
+# Deploy it with:  cd ~/termux-nixcfg && ./apply-device.sh
+echo ""
+echo "NOTE: the Pixel feature flag is now handled by termux-nixcfg"
+echo "      (magisk-gcam-pixel-feature). Run 'cd ~/termux-nixcfg && ./apply-device.sh'."
 
 # Launch GCam
 echo ""

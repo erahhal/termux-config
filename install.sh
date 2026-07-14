@@ -6,7 +6,7 @@
 # runs them. Run as your normal Termux user (NOT su).
 #
 #   ./install.sh                 # run everything
-#   ./install.sh gh vpn-nest     # run only the named modules
+#   ./install.sh gh claude-code  # run only the named modules
 #   ./install.sh --yes           # auto-confirm prompts
 #   ./install.sh --list          # list available modules
 #
@@ -26,16 +26,18 @@ SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 
 # Module registry: friendly-name -> "file:function".
 # Order here is the run order when no specific modules are requested.
-MODULE_ORDER=(base nix gh vpn-nest claude-code gcam gcam-camhal-fix gadgetbridge)
+#
+# The gcam / gcam-camhal-fix / gadgetbridge / vpn-nest modules were RETIRED from
+# here: their config is now declared in the termux-nixcfg repo (built as Nix
+# artifacts / Home Manager modules) so there's a single source of truth. vpn-nest
+# in particular is now fully Nix — start-vpn, mullvad_dns.py, h2 and the tailscale
+# binaries are all packaged there, so nothing is left to do imperatively.
+MODULE_ORDER=(base nix gh claude-code)
 declare -A MODULE_FILE=(
   [base]="00-base.sh:run_base"
   [nix]="05-nix.sh:run_nix"
   [gh]="10-gh.sh:run_gh"
-  [vpn-nest]="20-vpn-nest.sh:run_vpn_nest"
   [claude-code]="30-claude-code.sh:run_claude_code"
-  [gcam]="40-gcam.sh:run_gcam"
-  [gcam-camhal-fix]="50-gcam-camhal-fix.sh:run_gcam_camhal_fix"
-  [gadgetbridge]="60-gadgetbridge.sh:run_gadgetbridge"
   # Optional, not in MODULE_ORDER (so a plain ./install.sh won't change sshd).
   # Run explicitly: ./install.sh sshd-nix
   [sshd-nix]="70-sshd-nix.sh:run_sshd_nix"
