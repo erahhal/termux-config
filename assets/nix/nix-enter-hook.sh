@@ -1,4 +1,7 @@
+# shellcheck shell=bash
 # termux-config: bootstrap every interactive shell into Nix.
+#
+# Sourced, never executed — so it deliberately has no shebang.
 #
 # WHY THIS LIVES HERE AND NOT IN ~/.bashrc
 # ---------------------------------------

@@ -88,7 +88,7 @@ nix_fix_labels() {
 #      * Scoped to ptys the app already owns — nothing new in kind, only the ioctl
 #        VARIANT glibc uses.
 nix_install_sepolicy() {
-  local appdom magiskdom moddir rule x
+  local appdom magiskdom moddir rule
   appdom="$(id -Z | cut -d: -f3)"                         # e.g. untrusted_app_27
   magiskdom="$(su -c 'id -Z' 2>/dev/null | cut -d: -f3)"  # e.g. magisk
   [ -n "$appdom" ] && [ -n "$magiskdom" ] \
